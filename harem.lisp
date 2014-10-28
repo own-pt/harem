@@ -38,20 +38,25 @@
 
 
 (defclass sax-handler (sax:default-handler)
-  ((curdoc     :initform nil :reader cdoc)
-   (curmention :initform nil :reader cmention)
-   (docs       :initform nil :reader docs) 
-   (stack      :initform nil :reader collected-text)))
+  ((cdoc     :initform nil :reader cdoc)
+   (cmention :initform nil :reader cmention)
+   (tmention :initform nil :reader tmention)
+   (offset   :initform nil :reader offset)
+   (docs     :initform nil :reader docs) 
+   (stack    :initform nil :reader collected-text)))
 
 
 (defmethod sax:start-element ((h sax-handler) (namespace t) (local-name t) (qname t) (attributes t))
-  (with-slots (curdoc curmention stack) h
+  (with-slots (curdoc curmention stack offset) h
     (cond 
       ((equal local-name "doc") 
        (setf curdoc (make-instance 'document)))
-      ((assoc local-name *xml-fields* :test 'equal) 
-       (setf current-field (cdr (assoc local-name *xml-fields* :test 'equal)))
-       (setf stack nil)))))
+      ((equal local-name "alt") 
+       (setf curmention )
+       (setf stack nil))
+      ((equal local-name "em") 
+       (setf cmention (list offset attributes))
+       (setf tmention nil)))))
 
 
 (defmethod sax:end-element ((h sax-handler) (namespace t) (local-name t) (qname t))
