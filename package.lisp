@@ -1,7 +1,5 @@
 ;; package.lisp
 
-(defpackage #:wml
+(defpackage #:harem
   (:use #:cl))
-
-
 
