@@ -17,3 +17,13 @@
 		   (sax:end-element handler nil nil "bar"))
 	      (sax:characters handler c)))))
 
+
+(defun preproc-harem (input output) 
+  (with-open-file (out output :if-exists :supersede :direction :output)
+    (flet ((resolver (pubid sysid)
+	     (declare (ignore pubid sysid))
+	     (flexi-streams:make-in-memory-input-stream nil)))
+      (let ((h (make-instance 'preproc 
+			      :chained-handler (cxml:make-character-stream-sink out))))
+	(cxml:parse input h :validate nil :entity-resolver #'resolver)))))
+

@@ -9,47 +9,113 @@
 
 (in-package :harem)
 
+(defvar *state* nil "identify current state")
+
+(defun state-p (id)
+  (member id *state*))
+
+(defun state-on (&rest ids)
+  (setf *state* (union ids *state*)))
+
+(defun state-off (&rest ids)
+  (setf *state* (if (null ids) nil
+		    (set-difference *state* ids))))
+
 
 (defclass document ()
-  ((id       :initform nil :initarg :id :accessor id)
-   (text     :initform nil :accessor text)
-   (mentions :initform nil :accessor mentions)))
+  ((id       :initform nil :initarg :id :accessor doc-id)
+   (text     :initform nil :accessor doc-text)
+   (mentions :initform nil :accessor doc-mentions)))
+
+(defclass mention ()
+  ((id      :initform nil)
+   (stack   :initform nil :accessor mention-stack)
+   (categ   :initform nil)
+   (tipo    :initform nil)
+   (subtipo :initform nil)
+   (comment :initform nil)))
 
 (defclass harem-handler (sax:default-handler)
-  ((curdoc   :initform nil :accessor curdoc)
-   (cmention :initform nil :reader cmention)
-   (tmention :initform nil :reader tmention)
-   (offset   :initform nil :reader offset)
-   (docs     :initform nil :accessor docs) 
-   (stack    :initform nil :reader collected-text)))
+  ((offset   :initform nil :accessor hh-offset)
+   (docs     :initform nil :accessor hh-docs) 
+   (stack    :initform nil :accessor hh-stack)))
 
 
 (defmethod sax:start-element ((h harem-handler) (namespace t) (local-name t) (qname t) (attributes t))
-  (with-slots (curdoc docs) h
+  (with-slots (docs stack) h
     (cond 
+      ((equal local-name "ALT")
+       (state-on :reading-alt))
+      ((equal local-name "EM")
+       (state-on :reading-em)
+       (let ((em (make-instance 'mention)))
+	 (dolist (attr '(("ID" id) ("CATEG" categ) ("TIPO" tipo) 
+			 ("COMENT" comment) ("SUBTIPO" subtipo)))
+	   (let ((at (sax:find-attribute (car attr) attributes)))
+	     (if at 
+		 (setf (slot-value em (cadr attr)) (sax:attribute-value at)))))
+	 (push em stack)))
+      ((equal local-name "OMITIDO")
+       (state-on :reading-omitted))
       ((equal local-name "DOC") 
        (let ((id (sax:attribute-value (sax:find-attribute "DOCID" attributes))))
-	 (setf curdoc (make-instance 'document :id id)))))))
+	 (push (make-instance 'document :id id) docs))))))
 
 
 (defmethod sax:end-element ((h harem-handler) (namespace t) (local-name t) (qname t))
-  (with-slots (curdoc docs) h
+  (with-slots (docs stack) h
     (cond 
       ((equal local-name "DOC") 
-       (push curdoc docs)
-       (setf curdoc nil)))))
+       (setf (slot-value (car docs) 'text) (reverse stack))
+       (setf stack nil))
+      ((equal local-name "p")
+       (push (format nil "~%~%") stack))
+      ((equal local-name "bar")
+       (state-on :after-bar))
+      ((equal local-name "OMITIDO")
+       (state-off :reading-omitted))
+      ((equal local-name "EM")
+       (state-off :reading-em))
+      ((equal local-name "ALT")
+       (state-off :reading-alt :after-bar)))))
 
 
-;; (defmethod sax:characters ((h harem-handler) (data t))
-;;   ; escrever o data dentro do stream do doc corrent (se nao estou
-;;   ; dentro de um alt depois do primeiro |)
-;;   (with-slots (cdoc) h
-;;     (push data stack)))
+(defun normalize-string (data)
+  (cl-ppcre:regex-replace-all "  +" (cl-ppcre:regex-replace-all "\\n+" data " ") " "))
 
-;; (defun save-doc (doc)
-;;   ...)
+
+(defmethod sax:characters ((h harem-handler) (data t))
+  (with-slots (stack) h
+    (format *debug-io* "~s~%" (normalize-string data))
+    (let ((chunk (string-trim '(#\Newline #\Space #\Tab) data))) 
+      (unless (equal chunk "")
+	(let ((blk (normalize-string data)))
+	  (cond 
+	    ((state-p :reading-em)
+	     (push blk (mention-stack (car stack))))
+	    ((not (state-p :after-bar))
+	     (if (and (stringp (car stack))
+		      (not (cl-ppcre:scan " $" (car stack)))
+		      (not (cl-ppcre:scan "^ " blk))) 
+		 (push " " stack))
+	     (push blk stack))))))))
+
+
+(defun save-doc (doc &key (directory #P"corpus/"))
+  (let* ((filename (pathname (format nil "~a.txt" (doc-id doc))))
+	 (fullpath (cl-fad:merge-pathnames-as-file directory filename)))
+    (with-open-file (out fullpath :direction :output :if-exists :supersede)
+      (dolist (data (doc-text doc)) 
+	(cond 
+	  ((stringp data)
+	   (write-string data out))
+	  ((equal 'mention (type-of data))
+	   (mapcar #'(lambda (str) (write-string str out)) 
+		   (slot-value data 'stack))))))))
+
 
 (defun load-harem (filename) 
-  (let ((my (make-instance 'harem-handler)))
+  (let ((my (make-instance 'harem-handler))
+	(*state* nil))
     (cxml:parse filename my)
     (slot-value my 'docs)))
