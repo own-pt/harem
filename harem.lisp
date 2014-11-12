@@ -24,8 +24,10 @@
 
 (defclass document ()
   ((id       :initform nil :initarg :id :accessor doc-id)
-   (text     :initform nil :accessor doc-text)
-   (mentions :initform nil :accessor doc-mentions)))
+   (text     :initform nil :accessor doc-text)))
+
+(defclass alternative ()
+  ((stacks   :initform '(()) :accessor alternative-stacks)))
 
 (defclass mention ()
   ((id      :initform nil)
@@ -45,7 +47,8 @@
   (with-slots (docs stack) h
     (cond 
       ((equal local-name "ALT")
-       (state-on :reading-alt))
+       (state-on :reading-alt)
+       (push (make-instance 'alternative) stack))
       ((equal local-name "EM")
        (state-on :reading-em)
        (let ((em (make-instance 'mention)))
@@ -54,7 +57,9 @@
 	   (let ((at (sax:find-attribute (car attr) attributes)))
 	     (if at 
 		 (setf (slot-value em (cadr attr)) (sax:attribute-value at)))))
-	 (push em stack)))
+	 (if (state-p :reading-alt) 
+	     (push em (car (alternative-stacks (car stack))))
+	     (push em stack))))
       ((equal local-name "OMITIDO")
        (state-on :reading-omitted))
       ((equal local-name "DOC") 
@@ -71,13 +76,14 @@
       ((equal local-name "p")
        (push (format nil "~%~%") stack))
       ((equal local-name "bar")
-       (state-on :after-bar))
+       (let ((top (car stack)))
+	 (push '() (slot-value top 'stacks))))
       ((equal local-name "OMITIDO")
        (state-off :reading-omitted))
       ((equal local-name "EM")
        (state-off :reading-em))
       ((equal local-name "ALT")
-       (state-off :reading-alt :after-bar)))))
+       (state-off :reading-alt)))))
 
 
 (defun normalize-string (data)
@@ -86,18 +92,23 @@
 
 (defmethod sax:characters ((h harem-handler) (data t))
   (with-slots (stack) h
-    (format *debug-io* "~s~%" (normalize-string data))
+    ; (format *debug-io* "~s~%" (normalize-string data))
     (let ((chunk (string-trim '(#\Newline #\Space #\Tab) data))) 
       (unless (equal chunk "")
 	(let ((blk (normalize-string data)))
 	  (cond 
 	    ((state-p :reading-em)
-	     (push blk (mention-stack (car stack))))
-	    ((not (state-p :after-bar))
-	     (if (and (stringp (car stack))
-		      (not (cl-ppcre:scan " $" (car stack)))
-		      (not (cl-ppcre:scan "^ " blk))) 
-		 (push " " stack))
+	     (let ((top (car stack))) 
+	       (if (state-p :reading-alt)
+		   (push blk (mention-stack (caar (alternative-stacks top))))
+		   (push blk (mention-stack top)))))
+	    ((state-p :reading-alt)
+	     (push blk  (car (alternative-stacks (car stack)))))
+	    (t
+	     ;; (if (and (stringp (car stack))
+	     ;; 	      (not (cl-ppcre:scan " $" (car stack)))
+	     ;; 	      (not (cl-ppcre:scan "^ " blk))) 
+	     ;; 	 (push " " stack))
 	     (push blk stack))))))))
 
 
@@ -111,7 +122,7 @@
 	   (write-string data out))
 	  ((equal 'mention (type-of data))
 	   (mapcar #'(lambda (str) (write-string str out)) 
-		   (slot-value data 'stack))))))))
+		   (reverse (slot-value data 'stack)))))))))
 
 
 (defun load-harem (filename) 
