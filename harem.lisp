@@ -24,10 +24,11 @@
 
 (defclass document ()
   ((id       :initform nil :initarg :id :accessor doc-id)
-   (text     :initform nil :accessor doc-text)))
+   (stack    :initform nil :accessor doc-stack)))
 
 (defclass alternative ()
-  ((stacks   :initform '(()) :accessor alternative-stacks)))
+  ((current  :initform nil :accessor alternative-current)
+   (stacks   :initform nil :accessor alternative-stacks)))
 
 (defclass mention ()
   ((id      :initform nil)
@@ -43,7 +44,8 @@
    (stack    :initform nil :accessor hh-stack)))
 
 
-(defmethod sax:start-element ((h harem-handler) (namespace t) (local-name t) (qname t) (attributes t))
+(defmethod sax:start-element ((h harem-handler) (namespace t) (local-name t) (qname t) 
+			      (attributes t))
   (with-slots (docs stack) h
     (cond 
       ((equal local-name "ALT")
@@ -58,7 +60,8 @@
 	     (if at 
 		 (setf (slot-value em (cadr attr)) (sax:attribute-value at)))))
 	 (if (state-p :reading-alt) 
-	     (push em (car (alternative-stacks (car stack))))
+	     (with-slots (current) (car stack) 
+	       (push em current))
 	     (push em stack))))
       ((equal local-name "OMITIDO")
        (state-on :reading-omitted))
@@ -71,28 +74,34 @@
   (with-slots (docs stack) h
     (cond 
       ((equal local-name "DOC") 
-       (setf (slot-value (car docs) 'text) (reverse stack))
+       (setf (slot-value (car docs) 'stack) (reverse stack))
        (setf stack nil))
       ((equal local-name "p")
        (push (format nil "~%~%") stack))
       ((equal local-name "bar")
-       (let ((top (car stack)))
-	 (push '() (slot-value top 'stacks))))
+       (with-slots (current stacks) (car stack)
+	 (push (reverse current) stacks)
+	 (setf current nil)))
       ((equal local-name "OMITIDO")
        (state-off :reading-omitted))
       ((equal local-name "EM")
        (state-off :reading-em))
       ((equal local-name "ALT")
+       (with-slots (current stacks) (car stack)
+	 (push (reverse current) stacks)
+	 (setf current nil
+	       stacks (reverse stacks)))
        (state-off :reading-alt)))))
 
 
 (defun normalize-string (data)
-  (cl-ppcre:regex-replace-all "  +" (cl-ppcre:regex-replace-all "\\n+" data " ") " "))
+  (labels ((norm (re data)
+	     (cl-ppcre:regex-replace-all re data " ")))
+    (norm "  +" (norm "\\n+" data))))
 
 
 (defmethod sax:characters ((h harem-handler) (data t))
   (with-slots (stack) h
-    ; (format *debug-io* "~s~%" (normalize-string data))
     (let ((chunk (string-trim '(#\Newline #\Space #\Tab) data))) 
       (unless (equal chunk "")
 	(let ((blk (normalize-string data)))
@@ -100,10 +109,11 @@
 	    ((state-p :reading-em)
 	     (let ((top (car stack))) 
 	       (if (state-p :reading-alt)
-		   (push blk (mention-stack (caar (alternative-stacks top))))
+		   (push blk (mention-stack (car (alternative-current top))))
 		   (push blk (mention-stack top)))))
 	    ((state-p :reading-alt)
-	     (push blk  (car (alternative-stacks (car stack)))))
+	     (with-slots (current) (car stack)
+	       (push blk current)))
 	    (t
 	     ;; (if (and (stringp (car stack))
 	     ;; 	      (not (cl-ppcre:scan " $" (car stack)))
@@ -116,7 +126,7 @@
   (let* ((filename (pathname (format nil "~a.txt" (doc-id doc))))
 	 (fullpath (cl-fad:merge-pathnames-as-file directory filename)))
     (with-open-file (out fullpath :direction :output :if-exists :supersede)
-      (dolist (data (doc-text doc)) 
+      (dolist (data (doc-stack doc)) 
 	(cond 
 	  ((stringp data)
 	   (write-string data out))
@@ -126,7 +136,7 @@
 
 
 (defun load-harem (filename) 
-  (let ((my (make-instance 'harem-handler))
+  (let ((hh (make-instance 'harem-handler))
 	(*state* nil))
-    (cxml:parse filename my)
-    (slot-value my 'docs)))
+    (cxml:parse filename hh)
+    (reverse (slot-value hh 'docs))))
