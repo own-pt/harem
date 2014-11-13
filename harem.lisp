@@ -122,17 +122,29 @@
 	     (push blk stack))))))))
 
 
+;; this is the function that actually save the text and the mentions
+;; in two separated files. Mentions must be associated with character
+;; offsets (begin, end) where they occur in the text. alternative
+;; blocks need a special threatment, only one possiblility should be
+;; save in the text but all mentions from all possibilities but be
+;; saved in the mentions file.
+
 (defun save-doc (doc &key (directory #P"corpus/"))
-  (let* ((filename (pathname (format nil "~a.txt" (doc-id doc))))
-	 (fullpath (cl-fad:merge-pathnames-as-file directory filename)))
-    (with-open-file (out fullpath :direction :output :if-exists :supersede)
-      (dolist (data (doc-stack doc)) 
-	(cond 
-	  ((stringp data)
-	   (write-string data out))
-	  ((equal 'mention (type-of data))
-	   (mapcar #'(lambda (str) (write-string str out)) 
-		   (reverse (slot-value data 'stack)))))))))
+  (labels ((fp (ext)
+	     (let ((filename (pathname (format nil "~a.~a" (doc-id doc) ext))))
+	       (cl-fad:merge-pathnames-as-file directory filename))))
+    (with-open-file (out (fp "txt") :direction :output :if-exists :supersede)
+      (with-open-file (meta (fp "dat") :direction :output :if-exists :supersede)
+	(dolist (data (doc-stack doc)) 
+	  (cond 
+	    ((stringp data)
+	     (write-string data out))
+	    ((equal 'alternative (type-of data))
+	     ;; o que fazer?
+	     )
+	    ((equal 'mention (type-of data))
+	     (mapcar #'(lambda (str) (write-string str out)) 
+		     (reverse (slot-value data 'stack))))))))))
 
 
 (defun load-harem (filename) 
