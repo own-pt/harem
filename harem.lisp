@@ -97,29 +97,23 @@
 (defun normalize-string (data)
   (labels ((norm (re data)
 	     (cl-ppcre:regex-replace-all re data " ")))
-    (norm "  +" (norm "\\n+" data))))
+    (norm "  +" (norm "(\\n|\\t)+" data))))
 
 
 (defmethod sax:characters ((h harem-handler) (data t))
   (with-slots (stack) h
-    (let ((chunk (string-trim '(#\Newline #\Space #\Tab) data))) 
-      (unless (equal chunk "")
-	(let ((blk (normalize-string data)))
-	  (cond 
-	    ((state-p :reading-em)
-	     (let ((top (car stack))) 
-	       (if (state-p :reading-alt)
-		   (push blk (mention-stack (car (alternative-current top))))
-		   (push blk (mention-stack top)))))
-	    ((state-p :reading-alt)
-	     (with-slots (current) (car stack)
-	       (push blk current)))
-	    (t
-	     ;; (if (and (stringp (car stack))
-	     ;; 	      (not (cl-ppcre:scan " $" (car stack)))
-	     ;; 	      (not (cl-ppcre:scan "^ " blk))) 
-	     ;; 	 (push " " stack))
-	     (push blk stack))))))))
+    (let ((blk (normalize-string data)))
+      (cond 
+	((state-p :reading-em)
+	 (let ((top (car stack))) 
+	   (if (state-p :reading-alt)
+	       (push blk (mention-stack (car (alternative-current top))))
+	       (push blk (mention-stack top)))))
+	((state-p :reading-alt)
+	 (with-slots (current) (car stack)
+	   (push blk current)))
+	(t
+	 (push blk stack))))))
 
 
 ;; this is the function that actually save the text and the mentions
@@ -129,22 +123,51 @@
 ;; save in the text but all mentions from all possibilities but be
 ;; saved in the mentions file.
 
+(defun save-altenative (data-stream meta-stream obj &key (only-meta nil))
+  (let ((stacks (alternative-stacks obj))
+	(first t))
+    (loop 
+	  for stack in stacks
+	  for first? = t then nil 
+	  do 
+	  (if first? 
+	      (save-stack data-stream meta-stream stack)
+	      (save-stack data-stream meta-stream stack :only-meta t)))))
+
+
+(defun save-mention (data-stream meta-stream obj &key (only-meta nil))
+  (let ((offset nil) 
+	(out (loop for x in '(id categ tipo subtipo comment)
+		   collect (list x . (slot-value obj x)))))
+    (format meta-stream "~s~%" 
+	    (cons (offset (file-position data-stream)) out))
+    (dolist (data (reverse (mention-stack obj)) offset)
+      (setf offset (save-stack data-stream meta-stream data :only-meta only-meta)))))
+
+
+(defun save-stack (data-stream meta-stream stack &key (only-meta nil))
+  (if (null stack)
+      (file-position data-stream)
+      (let ((data (car stack))) 
+	(cond 
+	  ((stringp data)
+	   (unless only-meta
+	     (write-string data data-stream))
+	   (file-position data-stream))
+	  ((equal 'alternative (type-of data))
+	   (save-alternative data-stream meta-stream data :only-meta only-meta))
+	  ((equal 'mention (type-of data))
+	   (save-mention data-stream meta-stream data :only-meta only-meta)))
+	(save-stack data-stream meta-stream (cdr stack) :only-meta only-meta))))
+
+
 (defun save-doc (doc &key (directory #P"corpus/"))
   (labels ((fp (ext)
 	     (let ((filename (pathname (format nil "~a.~a" (doc-id doc) ext))))
 	       (cl-fad:merge-pathnames-as-file directory filename))))
     (with-open-file (out (fp "txt") :direction :output :if-exists :supersede)
       (with-open-file (meta (fp "dat") :direction :output :if-exists :supersede)
-	(dolist (data (doc-stack doc)) 
-	  (cond 
-	    ((stringp data)
-	     (write-string data out))
-	    ((equal 'alternative (type-of data))
-	     ;; o que fazer?
-	     )
-	    ((equal 'mention (type-of data))
-	     (mapcar #'(lambda (str) (write-string str out)) 
-		     (reverse (slot-value data 'stack))))))))))
+	(save-stack (doc-stack doc) out meta)))))
 
 
 (defun load-harem (filename) 
