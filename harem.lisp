@@ -123,51 +123,52 @@
 ;; save in the text but all mentions from all possibilities but be
 ;; saved in the mentions file.
 
-(defun save-altenative (data-stream meta-stream obj &key (only-meta nil))
-  (let ((stacks (alternative-stacks obj))
-	(first t))
-    (loop 
-	  for stack in stacks
+(defun save-alternative (obj data-stream meta-stream &key (start 0))
+  (let ((saved (+ start (file-position data-stream))))
+    (loop for stack in (alternative-stacks obj)
+	  for dummy = nil then (make-string-output-stream)
 	  for first? = t then nil 
 	  do 
 	  (if first? 
-	      (save-stack data-stream meta-stream stack)
-	      (save-stack data-stream meta-stream stack :only-meta t)))))
+	      (save-stack stack data-stream meta-stream :start start)
+	      (save-stack stack dummy meta-stream :start saved)))))
 
 
-(defun save-mention (data-stream meta-stream obj &key (only-meta nil))
-  (let ((offset nil) 
-	(out (loop for x in '(id categ tipo subtipo comment)
-		   collect (list x . (slot-value obj x)))))
-    (format meta-stream "~s~%" 
-	    (cons (offset (file-position data-stream)) out))
-    (dolist (data (reverse (mention-stack obj)) offset)
-      (setf offset (save-stack data-stream meta-stream data :only-meta only-meta)))))
+(defun save-mention (obj data-stream meta-stream &key (start 0))
+  (let* ((offset (+ 1 start (file-position data-stream)))
+	 (data-stream-label (make-string-output-stream))
+	 (data-broadcast (make-broadcast-stream data-stream data-stream-label)))
+    (save-stack (reverse (mention-stack obj)) data-broadcast meta-stream :start start)
+    (format meta-stream "~s ~s ~s~%" 
+	    (cons offset (+ start (file-position data-stream)))
+	    (get-output-stream-string data-stream-label)
+	    (loop for x in '(id categ tipo subtipo comment)
+		  collect (cons x (slot-value obj x))))))
 
 
-(defun save-stack (data-stream meta-stream stack &key (only-meta nil))
+(defun save-stack (stack data-stream meta-stream &key (start 0))
   (if (null stack)
       (file-position data-stream)
       (let ((data (car stack))) 
 	(cond 
 	  ((stringp data)
-	   (unless only-meta
-	     (write-string data data-stream))
-	   (file-position data-stream))
+	   (write-string data data-stream))
 	  ((equal 'alternative (type-of data))
-	   (save-alternative data-stream meta-stream data :only-meta only-meta))
+	   (save-alternative data data-stream meta-stream :start start))
 	  ((equal 'mention (type-of data))
-	   (save-mention data-stream meta-stream data :only-meta only-meta)))
-	(save-stack data-stream meta-stream (cdr stack) :only-meta only-meta))))
+	   (save-mention data data-stream meta-stream :start start)))
+	(save-stack (cdr stack) data-stream meta-stream :start start))))
 
 
 (defun save-doc (doc &key (directory #P"corpus/"))
-  (labels ((fp (ext)
-	     (let ((filename (pathname (format nil "~a.~a" (doc-id doc) ext))))
-	       (cl-fad:merge-pathnames-as-file directory filename))))
-    (with-open-file (out (fp "txt") :direction :output :if-exists :supersede)
-      (with-open-file (meta (fp "dat") :direction :output :if-exists :supersede)
-	(save-stack (doc-stack doc) out meta)))))
+  (flet ((fp (ext)
+	   (let ((filename (pathname (format nil "~a.~a" (doc-id doc) ext))))
+	     (cl-fad:merge-pathnames-as-file directory filename))))
+    (let ((out (make-string-output-stream)))
+      (with-open-file (outf (fp "txt") :direction :output :if-exists :supersede)
+	(with-open-file (meta (fp "dat") :direction :output :if-exists :supersede)
+	  (save-stack (doc-stack doc) out meta :start 0)
+	  (format outf (get-output-stream-string out)))))))
 
 
 (defun load-harem (filename) 
