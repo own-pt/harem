@@ -135,15 +135,15 @@
 
 
 (defun save-mention (obj data-stream meta-stream &key (start 0))
-  (let* ((offset (+ 1 start (file-position data-stream)))
+  (let* ((entry (list (+ 1 start (file-position data-stream))))
 	 (data-stream-label (make-string-output-stream))
 	 (data-broadcast (make-broadcast-stream data-stream data-stream-label)))
     (save-stack (reverse (mention-stack obj)) data-broadcast meta-stream :start start)
-    (format meta-stream "~s ~s ~s~%" 
-	    (cons offset (+ start (file-position data-stream)))
-	    (get-output-stream-string data-stream-label)
-	    (loop for x in '(id categ tipo subtipo comment)
-		  collect (cons x (slot-value obj x))))))
+    (push (+ start (file-position data-stream)) entry) 
+    (push (get-output-stream-string data-stream-label) entry)
+    (loop for x in '(id categ tipo subtipo comment)
+	  do (push (slot-value obj x) entry))
+    (fare-csv:write-csv-line (reverse entry) meta-stream)))
 
 
 (defun save-stack (stack data-stream meta-stream &key (start 0))
