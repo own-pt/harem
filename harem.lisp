@@ -1,5 +1,19 @@
 ;; (C) 2013 IBM Corporation
 ;;  Author: Alexandre Rademaker
+;;                          _
+;;  _._ _..._ .-',     _.._(`))
+;; '-. `     '  /-._.-'    ',/
+;;    )         \            '.
+;;   / _    _    |             \
+;;  |  a    a    /              |
+;;  \   .-.                     ;  
+;;   '-('' ).-'       ,'       ;
+;;      '-;           |      .'
+;;         \           \    /
+;;         | 7  .__  _.-\   \
+;;         | |  |  ``/  /`  /
+;;        /,_|  |   /,_/   /
+;;           /,_/      '`-'
 ;;
 ;; Referencias:
 ;; - http://code.google.com/p/cl-en/source/browse/trunk/basics.lisp#148
@@ -134,16 +148,29 @@
 	      (save-stack stack dummy meta-stream :start saved)))))
 
 
+(defun save-mention-data (stream start end label id comment categ tipo subtipo)
+  (if (listp tipo)
+      (assert (= (length categ) (length tipo))))
+  (dotimes (n (length categ))
+    (let ((cat (or (nth n categ) nil))
+	  (tip (or (nth n tipo) nil))
+	  (sub (or (nth n subtipo) nil)))
+      (fare-csv:write-csv-line (list start end id label cat tip sub comment) stream))))
+
+
 (defun save-mention (obj data-stream meta-stream &key (start 0))
-  (let* ((entry (list (+ 1 start (file-position data-stream))))
+  (let* ((start (+ 1 start (file-position data-stream)))
 	 (data-stream-label (make-string-output-stream))
 	 (data-broadcast (make-broadcast-stream data-stream data-stream-label)))
     (save-stack (reverse (mention-stack obj)) data-broadcast meta-stream :start start)
-    (push (+ start (file-position data-stream)) entry) 
-    (push (get-output-stream-string data-stream-label) entry)
-    (loop for x in '(id categ tipo subtipo comment)
-	  do (push (slot-value obj x) entry))
-    (fare-csv:write-csv-line (reverse entry) meta-stream)))
+    (save-mention-data meta-stream
+		       start (+ start (file-position data-stream))
+		       (get-output-stream-string data-stream-label)
+		       (slot-value obj 'id)
+		       (slot-value obj 'comment)
+		       (cl-ppcre:split "\\|" (slot-value obj 'categ))
+		       (cl-ppcre:split "\\|" (slot-value obj 'tipo))
+		       (cl-ppcre:split "\\|" (slot-value obj 'subtipo)))))
 
 
 (defun save-stack (stack data-stream meta-stream &key (start 0))
