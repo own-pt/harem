@@ -23,7 +23,13 @@
 
 (in-package :harem)
 
+(defun get-pkg-path (pkg)
+  (pathname-directory (asdf:system-definition-pathname (asdf:find-system pkg))))
+
 (defvar *state* nil "identify current state")
+(defparameter *db-convert*
+  (with-open-file (in (make-pathname :directory (get-pkg-path :harem) :name "table.lisp"))
+    (read in)))
 
 (defun state-p (id)
   (member id *state*))
@@ -137,43 +143,77 @@
 ;; save in the text but all mentions from all possibilities but be
 ;; saved in the mentions file.
 
-(defun save-alternative (obj data-stream meta-stream &key (start 0))
+(defun select (selector-fn)
+  (car (remove-if-not selector-fn *db-convert*)))
+
+(defun where (&key categ tipo subtipo)
+  #'(lambda (entry)
+      (and
+       (if categ   (equal (getf entry :categ)   categ) t)
+       (if tipo    (equal (getf entry :tipo)    tipo) t)
+       (if subtipo (equal (getf entry :subtipo) subtipo) t))))
+
+(defun combinations (&rest lists)
+  (if (car lists)
+      (mapcan (lambda (inner-val)
+                (mapcar (lambda (outer-val)
+                          (cons outer-val inner-val))
+                        (car lists)))
+              (apply #'combinations (cdr lists)))
+      (list nil)))
+
+
+(defun save-alternative (obj data-stream meta-stream &key (start 0) (doc-id nil))
   (let ((saved (+ start (file-position data-stream))))
     (loop for stack in (alternative-stacks obj)
 	  for dummy = nil then (make-string-output-stream)
 	  for first? = t then nil 
 	  do 
 	  (if first? 
-	      (save-stack stack data-stream meta-stream :start start)
-	      (save-stack stack dummy meta-stream :start saved)))))
+	      (save-stack stack data-stream meta-stream :start start :doc-id doc-id)
+	      (save-stack stack dummy meta-stream :start saved :doc-id doc-id)))))
 
 
-(defun save-mention-data (stream start end label id comment categ tipo subtipo)
-  (if (listp tipo)
-      (assert (= (length categ) (length tipo))))
+(defun save-mention-data (doc-id stream start end label id comment categ tipo subtipo)
   (dotimes (n (length categ))
-    (let ((cat (or (nth n categ) nil))
-	  (tip (or (nth n tipo) nil))
-	  (sub (or (nth n subtipo) nil)))
-      (fare-csv:write-csv-line (list start end id label cat tip sub comment) stream))))
+    (let* ((cat (or (nth n categ) ""))
+	   (tip (or (nth n tipo) ""))
+	   (sub (or (nth n subtipo) ""))
+	   (out (select (where :categ cat :tipo tip :subtipo sub)))
+	   (dat (apply #'combinations
+		       (mapcar (lambda (e) (if (equal e "")
+					       (list e)
+					       (cl-ppcre:split "/" e)))
+			       (list (getf out :entType)
+				     (getf out :mentType)
+				     (getf out :class)
+				     (getf out :subtype)
+				     (getf out :role))))))
+      (dolist (opt dat)
+	(fare-csv:write-csv-line (list (format nil "~a.txt" doc-id)
+				       label
+				       (format nil "[~a - ~a]" start end)
+				       (format nil "~{~a~^-~}" opt)) stream)))))
 
 
-(defun save-mention (obj data-stream meta-stream &key (start 0))
-  (let* ((start (+ 1 start (file-position data-stream)))
-	 (data-stream-label (make-string-output-stream))
-	 (data-broadcast (make-broadcast-stream data-stream data-stream-label)))
-    (save-stack (reverse (mention-stack obj)) data-broadcast meta-stream :start start)
-    (save-mention-data meta-stream
-		       start (+ start (file-position data-stream))
-		       (get-output-stream-string data-stream-label)
-		       (slot-value obj 'id)
-		       (slot-value obj 'comment)
-		       (cl-ppcre:split "\\|" (slot-value obj 'categ))
-		       (cl-ppcre:split "\\|" (slot-value obj 'tipo))
-		       (cl-ppcre:split "\\|" (slot-value obj 'subtipo)))))
+(defun save-mention (obj data-stream meta-stream &key (start 0) (doc-id nil))
+  (flet ((get-value (slot &key (default nil))
+	   (if slot (cl-ppcre:split "\\|" slot :limit 10) default)))
+    (let* ((start (+ 1 start (file-position data-stream)))
+	   (data-stream-label (make-string-output-stream))
+	   (data-broadcast (make-broadcast-stream data-stream data-stream-label)))
+      (save-stack (reverse (mention-stack obj)) data-broadcast meta-stream :start start)
+      (save-mention-data doc-id meta-stream
+			 start (+ start (file-position data-stream))
+			 (get-output-stream-string data-stream-label)
+			 (slot-value obj 'id)
+			 (slot-value obj 'comment)
+			 (get-value (slot-value obj 'categ) :default '(""))
+			 (get-value (slot-value obj 'tipo))
+			 (get-value (slot-value obj 'subtipo))))))
 
 
-(defun save-stack (stack data-stream meta-stream &key (start 0))
+(defun save-stack (stack data-stream meta-stream &key (start 0) (doc-id nil))
   (if (null stack)
       (file-position data-stream)
       (let ((data (car stack))) 
@@ -181,10 +221,10 @@
 	  ((stringp data)
 	   (write-string data data-stream))
 	  ((equal 'alternative (type-of data))
-	   (save-alternative data data-stream meta-stream :start start))
+	   (save-alternative data data-stream meta-stream :start start :doc-id doc-id))
 	  ((equal 'mention (type-of data))
-	   (save-mention data data-stream meta-stream :start start)))
-	(save-stack (cdr stack) data-stream meta-stream :start start))))
+	   (save-mention data data-stream meta-stream :start start :doc-id doc-id)))
+	(save-stack (cdr stack) data-stream meta-stream :start start :doc-id doc-id))))
 
 
 (defun save-doc (doc &key (directory #P"corpus/"))
@@ -194,7 +234,7 @@
     (let ((out (make-string-output-stream)))
       (with-open-file (outf (fp "txt") :direction :output :if-exists :supersede)
 	(with-open-file (meta (fp "dat") :direction :output :if-exists :supersede)
-	  (save-stack (doc-stack doc) out meta :start 0)
+	  (save-stack (doc-stack doc) out meta :start 0 :doc-id (doc-id doc))
 	  (format outf (get-output-stream-string out)))))))
 
 
