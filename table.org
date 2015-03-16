@@ -1,0 +1,103 @@
+
+#+name: input
+| categ         | tipo          | subtipo    | entType                  | mentType | class | subtype                         | role       |
+|---------------+---------------+------------+--------------------------+----------+-------+---------------------------------+------------|
+| PESSOA        | INDIVIDUAL    |            | PERSON                   | NAM      |       |                                 |            |
+| TEMPO         | TEMPO_CALEND  | DATA       | DATE                     | NONE     |       |                                 |            |
+| LOCAL         | HUMANO        | DIVISAO    | GPE                      | NAM      |       |                                 |            |
+| ORGANIZACAO   | INSTITUICAO   |            | ORGANIZATION             | NONE     |       |                                 |            |
+| ORGANIZACAO   | ADMINISTRACAO |            | ORGANIZATION             | NONE     |       | GOVERNAMENTAL/MUTIGOV/POLITICAL |            |
+| LOCAL         | HUMANO        | PAIS       | GPE                      | NONE     |       | COUNTRY                         |            |
+| PESSOA        | GRUPOMEMBRO   |            | PERSONPEOPLE             | NONE     |       |                                 |            |
+| COISA         | CLASSE        |            | PRODUCT/LAW/ORGANIZATION | NONE     |       |                                 |            |
+| ABSTRACCAO    | DISCIPLINA    |            |                          | NAM      |       |                                 |            |
+| VALOR         | QUANTIDADE    |            | MEASURE                  | NONE     |       |                                 |            |
+| LOCAL         | HUMANO        | CONSTRUCAO | GPE                      | NONE     |       | FACILITY                        |            |
+| ACONTECIMENTO | ORGANIZADO    |            | EVENT                    | NONE     |       |                                 |            |
+| OBRA          | PLANO         |            | LAW                      | NONE     |       |                                 |            |
+| ORGANIZACAO   | EMPRESA       |            | ORGANIZATION             | NONE     |       | COMMERCIAL                      |            |
+| PESSOA        | CARGO         |            | PERSON                   | NONE     |       |                                 | OCCUPATION |
+| OBRA          | REPRODUZIDA   |            | TITLEWORK                | NONE     |       |                                 |            |
+| OUTRO         |               |            |                          | NONE     |       |                                 |            |
+| TEMPO         | GENERICO      |            | TIME                     | NONE     |       |                                 |            |
+| ACONTECIMENTO | EFEMERIDE     |            | EVENTO                   | NONE     |       |                                 |            |
+| ABSTRACCAO    | NOME          |            |                          | NAM      |       |                                 |            |
+| LOCAL         | HUMANO        | REGIAO     | GPE                      |          |       |                                 |            |
+| COISA         | OBJECTO       |            | PRODUCT/LAW/ORGANIZATION |          |       |                                 |            |
+| ABSTRACCAO    | IDEIA         |            |                          |          |       |                                 |            |
+| TEMPO         | FREQUENCIA    |            | TIME                     |          |       |                                 | RATE       |
+| VALOR         | MOEDA         |            | MONEY                    |          |       |                                 |            |
+| TEMPO         | DURACAO       |            | DURATION                 |          |       |                                 |            |
+| TEMPO         | TEMPO_CALEND  | INTERVALO  | DATE                     |          |       |                                 |            |
+| PESSOA        | POVO          |            | PERSONPEOPLE             |          |       |                                 |            |
+| ACONTECIMENTO | EVENTO        |            | EVENTO                   |          |       |                                 |            |
+| OBRA          | REPRODUZIDA   | LIVRO      | TITLEWORK                |          |       |                                 |            |
+| OBRA          | ARTE          |            | TITLEWORK                |          |       |                                 |            |
+| VALOR         | CLASSIFICACAO |            | ORDINAL                  |          |       |                                 |            |
+| LOCAL         | FISICO        | REGIAO     | GEOLOGICALOBJECT         |          |       |                                 |            |
+| TEMPO         | TEMPO_CALEND  | HORA       | TIME                     |          |       |                                 |            |
+| PESSOA        | GRUPOIND      |            | PERSONPEOPLE             |          |       |                                 |            |
+| LOCAL         | HUMANO        | RUA        | GPE                      |          |       |                                 |            |
+| LOCAL         | VIRTUAL       | SITIO      | WEB                      |          |       |                                 |            |
+| OBRA          | REPRODUZIDA   | MUSICA     | TITLEWORK                |          |       |                                 |            |
+| ORGANIZACAO   | INSTITUICAO   | SUB        | ORGANIZATION             |          |       |                                 |            |
+| OBRA          | REPRODUZIDA   | FILME      | TITLEWORK                |          |       |                                 |            |
+| PESSOA        | GRUPOCARGO    |            | PEOPLE                   |          |       |                                 | OCCUPATION |
+| LOCAL         | FISICO        | AGUAMASSA  | GEOLOGICALOBJECT         |          |       |                                 |            |
+| LOCAL         | VIRTUAL       | COMSOCIAL  | WEB                      |          |       |                                 |            |
+| OBRA          | REPRODUZIDA   | OUTRO      | TITLEWORK                |          |       |                                 |            |
+| ORGANIZACAO   |               |            | ORGANIZATION             |          |       |                                 |            |
+| LOCAL         | HUMANO        | OUTRO      | GPE                      |          |       |                                 |            |
+| ORGANIZACAO   | ADMINISTRACAO | SUB        | ORGANIZATION             |          |       | GOVERNAMENTAL/MUTIGOV/POLITICAL |            |
+| ACONTECIMENTO |               |            | EVENTO                   |          |       |                                 |            |
+| LOCAL         |               |            | GEOLOGICALOBJECT/GPE/WEB |          |       |                                 |            |
+| LOCAL         | FISICO        | ILHA       | GEOLOGICALOBJECT         |          |       |                                 |            |
+| LOCAL         | FISICO        | OUTRO      | GEOLOGICALOBJECT         |          |       |                                 |            |
+| LOCAL         | FISICO        | RELEVO     | GEOLOGICALOBJECT         |          |       |                                 |            |
+| ABSTRACCAO    | ESTADO        |            | DISEASE                  |          |       |                                 |            |
+| COISA         | SUBSTANCIA    |            | SUBSTANCE                |          |       |                                 |            |
+| COISA         | MEMBROCLASSE  |            | PRODUCT/LAW/ORGANIZATION |          |       |                                 |            |
+| LOCAL         | FISICO        | AGUACURSO  | GEOLOGICALOBJECT         |          |       |                                 |            |
+| LOCAL         | FISICO        | PLANETA    | GEOLOGICALOBJECT         |          |       |                                 |            |
+| LOCAL         | OUTRO         |            | GEOLOGICALOBJECT/GPE/WEB |          |       |                                 |            |
+| COISA         |               |            | PRODUCT/LAW/ORGANIZATION |          |       |                                 |            |
+| PESSOA        | MEMBRO        |            | PERSON                   |          |       |                                 |            |
+| ABSTRACCAO    |               |            |                          |          |       |                                 |            |
+| OBRA          | ARTE          | EDIFICIO   | TITLEWORK                |          |       |                                 |            |
+| LOCAL         | VIRTUAL       | OUTRO      | WEB                      |          |       |                                 |            |
+| OBRA          |               |            | TITLEWORK/LAW            |          |       |                                 |            |
+| OBRA          | ARTE          | CONSTRUCAO | TITLEWORK                |          |       |                                 |            |
+| LOCAL         | VIRTUAL       | OBRA       | WEB                      |          |       |                                 |            |
+| OBRA          | REPRODUZIDA   | PROGRAMA   | TITLEWORK                |          |       |                                 |            |
+| OBRA          | ARTE          | OUTRO      | TITLEWORK                |          |       |                                 |            |
+| PESSOA        |               |            | PERSON                   |          |       |                                 |            |
+| COISA         | OUTRO         |            | PRODUCT/LAW/ORGANIZATION |          |       |                                 |            |
+| OUTRO         | OUTRO         |            |                          |          |       |                                 |            |
+| LOCAL         | VIRTUAL       |            | WEB                      |          |       |                                 |            |
+| OBRA          | ARTE          | PINTURA    | TITLEWORK                |          |       |                                 |            |
+| ORGANIZACAO   | EMPRESA       | SUB        | ORGANIZATION             |          |       | COMMERCIAL                      |            |
+| OBRA          | REPRODUZIDA   | TEATRO     | TITLEWORK                |          |       |                                 |            |
+
+#+BEGIN_SRC lisp :var dados=input  :package "harem" :results value
+  (defun default (v default)
+    (if (equal v "")
+        default
+        v))
+
+  (defparameter *db-convert* (mapcar (lambda (line)
+                                  (list :categ (nth 0 line)
+                                        :tipo (nth 1 line)
+                                        :subtipo (nth 2 line)
+                                        :entType (nth 3 line)
+                                        :mentType (default (nth 4 line) "NONE")
+                                        :class (default (nth 5 line) "SPC")
+                                        :subtype (default (nth 6 line) "OTHER")
+                                        :role (default (nth 7 line) (nth 3 line))))
+                                dados))
+#+END_SRC
+
+#+RESULTS:
+: *DB-CONVERT*
+
+
+

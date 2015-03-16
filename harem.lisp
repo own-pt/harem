@@ -27,9 +27,7 @@
   (pathname-directory (asdf:system-definition-pathname (asdf:find-system pkg))))
 
 (defvar *state* nil "identify current state")
-(defparameter *db-convert*
-  (with-open-file (in (make-pathname :directory (get-pkg-path :harem) :name "table.lisp"))
-    (read in)))
+(defparameter *db-convert* nil)
 
 (defun state-p (id)
   (member id *state*))
@@ -199,18 +197,19 @@
 (defun save-mention (obj data-stream meta-stream &key (start 0) (doc-id nil))
   (flet ((get-value (slot &key (default nil))
 	   (if slot (cl-ppcre:split "\\|" slot :limit 10) default)))
-    (let* ((start (+ 1 start (file-position data-stream)))
+    (let* ((start (+ start (file-position data-stream)))
 	   (data-stream-label (make-string-output-stream))
 	   (data-broadcast (make-broadcast-stream data-stream data-stream-label)))
       (save-stack (reverse (mention-stack obj)) data-broadcast meta-stream :start start)
-      (save-mention-data doc-id meta-stream
-			 start (+ start (file-position data-stream))
-			 (get-output-stream-string data-stream-label)
-			 (slot-value obj 'id)
-			 (slot-value obj 'comment)
-			 (get-value (slot-value obj 'categ) :default '(""))
-			 (get-value (slot-value obj 'tipo))
-			 (get-value (slot-value obj 'subtipo))))))
+      (let ((label (get-output-stream-string data-stream-label)))
+	(save-mention-data doc-id meta-stream
+			   start (+ start (length label))
+			   label
+			   (slot-value obj 'id)
+			   (slot-value obj 'comment)
+			   (get-value (slot-value obj 'categ) :default '(""))
+			   (get-value (slot-value obj 'tipo))
+			   (get-value (slot-value obj 'subtipo)))))))
 
 
 (defun save-stack (stack data-stream meta-stream &key (start 0) (doc-id nil))
