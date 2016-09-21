@@ -33,6 +33,8 @@
   ((id      :initform nil)
    (stack   :initform nil :accessor mention-stack)
    (categ   :initform nil)
+   (tiporel :initform nil)
+   (corel   :initform nil)
    (tipo    :initform nil)
    (subtipo :initform nil)
    (comment :initform nil)))
@@ -54,7 +56,8 @@
        (state-on :reading-em)
        (let ((em (make-instance 'mention)))
 	 (dolist (attr '(("ID" id) ("CATEG" categ) ("TIPO" tipo) 
-			 ("COMENT" comment) ("SUBTIPO" subtipo)))
+			 ("COMENT" comment) ("SUBTIPO" subtipo)
+			 ("COREL" corel) ("TIPOREL" tiporel)))
 	   (let ((at (sax:find-attribute (car attr) attributes)))
 	     (if at 
 		 (setf (slot-value em (cadr attr)) (sax:attribute-value at)))))
@@ -153,12 +156,12 @@
 	      (save-stack stack dummy meta-stream :start saved :doc-id doc-id)))))
 
 
-(defun save-mention-data (doc-id stream start end label id comment categ tipo subtipo)
+(defun save-mention-data (doc-id stream start end label id comment categ tipo subtipo corel tiporel)
   (dotimes (n (length categ))
     (let* ((cat (or (nth n categ) ""))
 	   (tip (or (nth n tipo) ""))
 	   (sub (or (nth n subtipo) "")))
-      (fare-csv:write-csv-line (list (format nil "~a.txt" doc-id)
+      (fare-csv:write-csv-line (list (format nil "~a" id)
 				     label
 				     (format nil "[~a - ~a]" start end)
 				     (format nil "~{~a~^-~}" (list cat tip sub))) stream))))
@@ -179,7 +182,9 @@
 			   (slot-value obj 'comment)
 			   (get-value (slot-value obj 'categ) :default '(""))
 			   (get-value (slot-value obj 'tipo))
-			   (get-value (slot-value obj 'subtipo)))))))
+			   (get-value (slot-value obj 'subtipo))
+			   (get-value (slot-value obj 'corel))
+			   (get-value (slot-value obj 'tiporel)))))))
 
 
 (defun save-stack (stack data-stream meta-stream &key (start 0) (doc-id nil))
