@@ -164,7 +164,10 @@
       (fare-csv:write-csv-line (list (format nil "~a" id)
 				     label
 				     (format nil "[~a - ~a]" start end)
-				     (format nil "~{~a~^-~}" (list cat tip sub))) stream))))
+				     (format nil "~{~a~^-~}" (list cat tip sub))
+				     (format nil "~a" corel)
+				     (format nil "~a" tiporel))
+			       stream))))
 
 
 (defun save-mention (obj data-stream meta-stream &key (start 0) (doc-id nil))
