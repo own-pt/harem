@@ -1,25 +1,6 @@
 ;; (C) 2013 IBM Corporation
 ;;  Author: Alexandre Rademaker
-;;                          _
-;;  _._ _..._ .-',     _.._(`))
-;; '-. `     '  /-._.-'    ',/
-;;    )         \            '.
-;;   / _    _    |             \
-;;  |  a    a    /              |
-;;  \   .-.                     ;  
-;;   '-('' ).-'       ,'       ;
-;;      '-;           |      .'
-;;         \           \    /
-;;         | 7  .__  _.-\   \
-;;         | |  |  ``/  /`  /
-;;        /,_|  |   /,_/   /
-;;           /,_/      '`-'
 ;;
-;; Referencias:
-;; - http://code.google.com/p/cl-en/source/browse/trunk/basics.lisp#148
-;; - http://www.ibm.com/developerworks/xml/tutorials/x-usax/
-;; - http://common-lisp.net/project/cxml/
-;; - http://common-lisp.net/project/cxml/saxoverview/index.html
 
 (in-package :harem)
 
@@ -176,22 +157,11 @@
   (dotimes (n (length categ))
     (let* ((cat (or (nth n categ) ""))
 	   (tip (or (nth n tipo) ""))
-	   (sub (or (nth n subtipo) ""))
-	   (out (select (where :categ cat :tipo tip :subtipo sub)))
-	   (dat (apply #'combinations
-		       (mapcar (lambda (e) (if (equal e "")
-					       (list e)
-					       (cl-ppcre:split "/" e)))
-			       (list (getf out :entType)
-				     (getf out :mentType)
-				     (getf out :class)
-				     (getf out :subtype)
-				     (getf out :role))))))
-      (dolist (opt dat)
-	(fare-csv:write-csv-line (list (format nil "~a.txt" doc-id)
-				       label
-				       (format nil "[~a - ~a]" start end)
-				       (format nil "~{~a~^-~}" opt)) stream)))))
+	   (sub (or (nth n subtipo) "")))
+      (fare-csv:write-csv-line (list (format nil "~a.txt" doc-id)
+				     label
+				     (format nil "[~a - ~a]" start end)
+				     (format nil "~{~a~^-~}" (list cat tip sub))) stream))))
 
 
 (defun save-mention (obj data-stream meta-stream &key (start 0) (doc-id nil))
