@@ -8,7 +8,6 @@
   (pathname-directory (asdf:system-definition-pathname (asdf:find-system pkg))))
 
 (defvar *state* nil "identify current state")
-(defparameter *db-convert* nil)
 
 (defun state-p (id)
   (member id *state*))
@@ -125,25 +124,6 @@
 ;; save in the text but all mentions from all possibilities but be
 ;; saved in the mentions file.
 
-(defun select (selector-fn)
-  (car (remove-if-not selector-fn *db-convert*)))
-
-(defun where (&key categ tipo subtipo)
-  #'(lambda (entry)
-      (and
-       (if categ   (equal (getf entry :categ)   categ) t)
-       (if tipo    (equal (getf entry :tipo)    tipo) t)
-       (if subtipo (equal (getf entry :subtipo) subtipo) t))))
-
-(defun combinations (&rest lists)
-  (if (car lists)
-      (mapcan (lambda (inner-val)
-                (mapcar (lambda (outer-val)
-                          (cons outer-val inner-val))
-                        (car lists)))
-              (apply #'combinations (cdr lists)))
-      (list nil)))
-
 
 (defun save-alternative (obj data-stream meta-stream &key (start 0) (doc-id nil))
   (let ((saved (+ start (file-position data-stream))))
@@ -210,10 +190,10 @@
 	   (let ((filename (pathname (format nil "~a.~a" (doc-id doc) ext))))
 	     (cl-fad:merge-pathnames-as-file directory filename))))
     (let ((out (make-string-output-stream)))
-      (with-open-file (outf (fp "txt") :direction :output :if-exists :supersede)
-	(with-open-file (meta (fp "dat") :direction :output :if-exists :supersede)
-	  (save-stack (doc-stack doc) out meta :start 0 :doc-id (doc-id doc))
-	  (format outf (get-output-stream-string out)))))))
+      (with-open-files ((outf (fp "txt") :direction :output :if-exists :supersede)
+			(meta (fp "dat") :direction :output :if-exists :supersede))
+	(save-stack (doc-stack doc) out meta :start 0 :doc-id (doc-id doc))
+	(format outf (get-output-stream-string out))))))
 
 
 (defun load-harem (filename) 

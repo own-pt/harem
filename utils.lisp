@@ -1,8 +1,15 @@
 
 (in-package :harem)
 
-(defun compose (f g)
-  #'(lambda (x) (funcall f (funcall g x))))
+(defmacro with-open-files (args &body body)
+  (case (length args)
+    ((0)
+     `(progn ,@body))
+    ((1)
+     `(with-open-file ,(first args) ,@body))
+    (t `(with-open-file ,(first args)
+	  (with-open-files
+	      ,(rest args) ,@body)))))
 
 
 ;; code used during tests:
