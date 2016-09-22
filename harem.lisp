@@ -135,18 +135,31 @@
 	      (save-stack stack dummy meta-stream :start saved :doc-id doc-id)))))
 
 
+(defun non-empty (str)
+  (and str (> (length str) 0)))
+
+
 (defun save-mention-data (doc-id stream start end label id comment categ tipo subtipo corel tiporel)
   (dotimes (n (length categ))
     (let* ((cat (or (nth n categ) ""))
 	   (tip (or (nth n tipo) ""))
-	   (sub (or (nth n subtipo) "")))
+	   (sub (or (nth n subtipo) ""))
+           (em))
+
+      (when (non-empty cat)
+        (push cat em))
+      (when (non-empty tip)
+        (push tip em))
+      (when (non-empty sub)
+        (push sub em))
+
       (fare-csv:write-csv-line (list (format nil "~a" id)
 				     label
 				     (format nil "~a" start)
 				     (format nil "~a" end)
-				     (format nil "~{~a~^-~}" (list cat tip sub))
-				     (format nil "~a" corel)
-				     (format nil "~a" tiporel))
+				     (format nil "~{~a~^-~}" (nreverse em))
+				     (format nil "~{~a~^ ~}" corel)
+				     (format nil "~{~a~^ ~}" tiporel))
 			       stream))))
 
 
