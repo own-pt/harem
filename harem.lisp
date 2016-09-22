@@ -44,8 +44,7 @@
    (stack    :initform nil :accessor hh-stack)))
 
 
-(defmethod sax:start-element ((h harem-handler) (namespace t) (local-name t) (qname t) 
-			      (attributes t))
+(defmethod sax:start-element ((h harem-handler) (namespace t) (local-name t) (qname t) (attributes t))
   (with-slots (docs stack) h
     (cond 
       ((equal local-name "ALT")
